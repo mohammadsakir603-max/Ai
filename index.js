@@ -1,181 +1,82 @@
-import express from "express";
-import fetch from "node-fetch";
-
-const app = express();
-app.use(express.json());
-
-const PORT = process.env.PORT || 3000;
-
-/* ================= CHAT AI ================= */
-app.post("/api/chat", async (req, res) => {
-  const userMsg = req.body.message;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: userMsg }]
-    })
-  });
-
-  const data = await response.json();
-  res.json({ reply: data.choices[0].message.content });
-});
-
-/* ================= IMAGE AI ================= */
-app.post("/api/image", async (req, res) => {
-  const prompt = req.body.prompt;
-
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-image-1",
-      prompt,
-      size: "512x512"
-    })
-  });
-
-  const data = await response.json();
-  res.json({ img: data.data[0].url });
-});
-
-/* ================= GAME AI ================= */
-app.post("/api/game", async (req, res) => {
-  const q = req.body.question;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a quiz game AI. Answer short." },
-        { role: "user", content: q }
-      ]
-    })
-  });
-
-  const data = await response.json();
-  res.json({ answer: data.choices[0].message.content });
-});
-
-/* ================= FRONTEND ================= */
-app.get("/", (req, res) => {
-  res.send(`
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ALL-IN-ONE AI</title>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vixora AI</title>
 <style>
-body{
-background:#0f0f0f;
-color:#fff;
-font-family:Arial;
-margin:0;
-padding:0;
-text-align:center;
-}
-.container{
-padding:15px;
-}
-input,textarea{
-width:100%;
-padding:12px;
-border:2px solid #00ffcc;
-background:#111;
-color:white;
-border-radius:8px;
-margin-top:10px;
-}
-button{
-margin-top:10px;
-padding:12px;
-width:100%;
-background:transparent;
-color:#00ffcc;
-border:2px solid #00ffcc;
-border-radius:8px;
-font-size:16px;
-transition:0.3s;
-}
-button:active{
-transform:scale(0.95);
-background:#00ffcc;
-color:black;
-}
-img{
-width:100%;
-border-radius:10px;
-margin-top:10px;
-}
-.box{
-border:1px solid #333;
-padding:10px;
-margin-top:15px;
-border-radius:10px;
-}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto}
+body{margin:0;background:#f6f7fb;display:flex;flex-direction:column;height:100vh;}
+header{text-align:center;padding:18px;font-size:20px;font-weight:600;}
+#chat{flex:1;overflow-y:auto;padding:15px;}
+.msg{max-width:85%;margin-bottom:12px;padding:12px 14px;border-radius:16px;font-size:15px;line-height:1.4;}
+.user{background:#111;color:#fff;margin-left:auto;border-bottom-right-radius:4px;}
+.bot{background:#fff;color:#000;border-bottom-left-radius:4px;}
+pre{background:#0f172a;color:#e5e7eb;padding:12px;border-radius:12px;overflow-x:auto;position:relative;}
+.copy-btn{position:absolute;top:8px;right:8px;background:#fff;color:#000;border:none;padding:5px 8px;border-radius:6px;font-size:12px;cursor:pointer;}
+footer{display:flex;gap:8px;padding:12px;background:#fff;}
+input{flex:1;padding:14px;border-radius:14px;border:1px solid #ddd;font-size:15px;}
+button{border:none;border-radius:50%;width:48px;height:48px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;}
+button:active{transform:scale(.9)}
+#send{background:#000;color:#fff;}
 </style>
 </head>
-
 <body>
-<div class="container">
 
-<h2>🤖 Chat AI</h2>
-<textarea id="chatInput" placeholder="Type message"></textarea>
-<button onclick="chat()">Send</button>
-<div class="box" id="chatOut"></div>
+<header>What can I help you with?</header>
 
-<h2>🖼 Image AI</h2>
-<input id="imgInput" placeholder="Image prompt">
-<button onclick="image()">Generate</button>
-<div id="imgOut"></div>
+<div id="chat"></div>
 
-<h2>🎮 Game AI</h2>
-<input id="gameInput" placeholder="Ask game question">
-<button onclick="game()">Ask AI</button>
-<div class="box" id="gameOut"></div>
-
-</div>
+<footer>
+  <input id="input" placeholder="Ask with Vixora">
+  <button id="send">➤</button>
+</footer>
 
 <script>
-async function chat(){
-let msg=document.getElementById("chatInput").value;
-let r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});
-let d=await r.json();
-document.getElementById("chatOut").innerText=d.reply;
+const chat=document.getElementById("chat");
+const input=document.getElementById("input");
+
+function addMsg(text,cls){
+  const div=document.createElement("div");
+  div.className="msg "+cls;
+
+  if(text.includes("```")){
+    // Code block ke liye copy button
+    const code=text.split("```")[1];
+    const pre=document.createElement("pre");
+    pre.innerHTML=`<button class="copy-btn">Copy</button><code>${code}</code>`;
+    div.appendChild(pre);
+    setTimeout(()=>{
+      pre.querySelector(".copy-btn").onclick=()=>{
+        navigator.clipboard.writeText(code);
+        pre.querySelector(".copy-btn").innerText="Copied";
+      };
+    });
+  } else {
+    // Normal text, copy button nahi
+    div.innerText=text;
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
 }
 
-async function image(){
-let p=document.getElementById("imgInput").value;
-let r=await fetch("/api/image",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p})});
-let d=await r.json();
-document.getElementById("imgOut").innerHTML="<img src='"+d.img+"'>";
-}
+document.getElementById("send").onclick=()=>{
+  if(!input.value.trim()) return;
+  addMsg(input.value,"user");
 
-async function game(){
-let q=document.getElementById("gameInput").value;
-let r=await fetch("/api/game",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});
-let d=await r.json();
-document.getElementById("gameOut").innerText=d.answer;
-}
+  // Demo AI response logic
+  setTimeout(()=>{
+    let userText=input.value.toLowerCase();
+    if(userText.includes("html")||userText.includes("css")||userText.includes("js")||userText.includes("code")||userText.includes("game")){
+      addMsg("Here is your requested code:\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n<title>Game</title>\n</head>\n<body>\n<h1>My Game</h1>\n</body>\n</html>\n```","bot");
+    } else {
+      addMsg("This is Vixora AI response without code.","bot");
+    }
+  },600);
+  input.value="";
+};
 </script>
 
 </body>
 </html>
-`);
-});
-
-app.listen(PORT, () => console.log("AI App Running"));
