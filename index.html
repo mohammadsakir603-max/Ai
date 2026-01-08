@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vixora AI</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  font-family: "Poppins", system-ui, sans-serif;
+}
+
+body{
+  margin:0;
+  height:100vh;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.app{
+  width:100%;
+  max-width:420px;
+  height:100vh;
+  background:#0b0f14;
+  display:flex;
+  flex-direction:column;
+  color:#fff;
+}
+
+.header{
+  padding:16px;
+  text-align:center;
+  font-size:18px;
+  font-weight:600;
+  border-bottom:1px solid #1f2933;
+}
+
+.chat{
+  flex:1;
+  padding:15px;
+  overflow-y:auto;
+}
+
+.msg{
+  max-width:85%;
+  margin-bottom:12px;
+  padding:12px 14px;
+  border-radius:14px;
+  font-size:14px;
+  line-height:1.4;
+  word-wrap:break-word;
+}
+
+.user{
+  background:#2563eb;
+  align-self:flex-end;
+  border-bottom-right-radius:4px;
+}
+
+.ai{
+  background:#1f2933;
+  align-self:flex-start;
+  border-bottom-left-radius:4px;
+}
+
+.input-area{
+  display:flex;
+  gap:10px;
+  padding:12px;
+  border-top:1px solid #1f2933;
+}
+
+.input-area input{
+  flex:1;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #374151;
+  outline:none;
+  background:#0b0f14;
+  color:#fff;
+}
+
+.send-btn{
+  padding:0 18px;
+  border-radius:10px;
+  border:1px solid #2563eb;
+  background:transparent;
+  color:#2563eb;
+  font-size:16px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.send-btn:active{
+  transform:scale(0.92);
+  background:#2563eb;
+  color:#fff;
+}
+
+pre{
+  background:#000;
+  padding:12px;
+  border-radius:10px;
+  overflow-x:auto;
+  margin-top:8px;
+}
+
+code{
+  color:#22c55e;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="header">Vixora AI</div>
+
+  <div class="chat" id="chat">
+    <div class="msg ai">How can I help you?</div>
+  </div>
+
+  <div class="input-area">
+    <input id="input" placeholder="Ask with Vixora" />
+    <button class="send-btn" onclick="send()">➤</button>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+
+function addMessage(text, type){
+  const div = document.createElement("div");
+  div.className = "msg " + type;
+
+  if(text.includes("```")){
+    const clean = text.replace(/```[a-z]*|```/g,"");
+    div.innerHTML = "<pre><code>"+clean+"</code></pre>";
+  }else{
+    div.textContent = text;
+  }
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send(){
+  const text = input.value.trim();
+  if(!text) return;
+
+  addMessage(text,"user");
+  input.value = "";
+
+  const res = await fetch("/api/chat",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ message:text })
+  });
+
+  const data = await res.json();
+  addMessage(data.reply,"ai");
+}
+
+input.addEventListener("keydown",e=>{
+  if(e.key==="Enter") send();
+});
+</script>
+
+</body>
+</html>
