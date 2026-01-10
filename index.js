@@ -1,55 +1,82 @@
-import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import fetch from "node-fetch";
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
 
-const app = express();
-const PORT = process.env.PORT || 10000;
-const API_KEY = process.env.OPENAI_API_KEY;
+let typingDiv = null;
+let loading = false;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+function addMessage(text,type){
+  const msg = document.createElement("div");
+  msg.className = "msg " + type;
+  msg.textContent = text;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-app.use(express.json());
-app.use(express.static(__dirname));
+function showTyping(){
+  removeTyping();
+  typingDiv = document.createElement("div");
+  typingDiv.className = "typing ai";
+  typingDiv.innerHTML = `
+    <div class="dots">
+      <span>●</span><span>●</span><span>●</span>
+    </div>`;
+  chat.appendChild(typingDiv);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+function removeTyping(){
+  if(typingDiv){
+    typingDiv.remove();
+    typingDiv = null;
+  }
+}
 
-app.post("/api/chat", async (req, res) => {
-  try {
-    const userText = req.body.message;
+async function send(){
+  if(loading) return;
 
-    const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are Vixora AI. Talk naturally like a human. " +
-              "If the user asks for code, respond ONLY with code. " +
-              "Do not say phrases like 'response without code'."
-          },
-          { role: "user", content: userText }
-        ]
-      })
+  const text = input.value.trim();
+  if(!text) return;
+
+  addMessage(text,"user");
+  input.value = "";
+
+  loading = true;
+  sendBtn.classList.add("loading");
+  showTyping();
+
+  try{
+    const res = await fetch("/api/chat",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({message:text})
     });
 
-    const data = await aiRes.json();
-    res.json({ reply: data.choices[0].message.content });
+    const data = await res.json();
 
-  } catch (e) {
-    res.json({ reply: "Something went wrong. Please try again." });
+    removeTyping();
+
+    if(data.image){
+      const msg = document.createElement("div");
+      msg.className = "msg ai";
+      msg.innerHTML = `
+        <div class="image-box">
+          <img src="${data.image}">
+          <div class="img-actions">
+            <a href="${data.image}" download>Download</a>
+          </div>
+        </div>`;
+      chat.appendChild(msg);
+    }else{
+      addMessage(data.reply,"ai");
+    }
+
+  }catch{
+    removeTyping();
+    addMessage("Server error","ai");
   }
-});
 
-app.listen(PORT, () => {
-  console.log("Server running on port", PORT);
-});
+  loading = false;
+  sendBtn.classList.remove("loading");
+  chat.scrollTop = chat.scrollHeight;
+}
