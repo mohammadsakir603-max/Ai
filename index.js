@@ -1,82 +1,29 @@
-const chat = document.getElementById("chat");
-const input = document.getElementById("input");
-const sendBtn = document.getElementById("sendBtn");
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 
-let typingDiv = null;
-let loading = false;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-function addMessage(text,type){
-  const msg = document.createElement("div");
-  msg.className = "msg " + type;
-  msg.textContent = text;
-  chat.appendChild(msg);
-  chat.scrollTop = chat.scrollHeight;
-}
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-function showTyping(){
-  removeTyping();
-  typingDiv = document.createElement("div");
-  typingDiv.className = "typing ai";
-  typingDiv.innerHTML = `
-    <div class="dots">
-      <span>●</span><span>●</span><span>●</span>
-    </div>`;
-  chat.appendChild(typingDiv);
-  chat.scrollTop = chat.scrollHeight;
-}
+// JSON middleware
+app.use(express.json());
 
-function removeTyping(){
-  if(typingDiv){
-    typingDiv.remove();
-    typingDiv = null;
-  }
-}
+// Static public folder
+app.use(express.static(path.join(__dirname, "public")));
 
-async function send(){
-  if(loading) return;
+// API route
+app.post("/api/chat", (req, res) => {
+  const userText = req.body.message || "";
 
-  const text = input.value.trim();
-  if(!text) return;
+  res.json({
+    reply: "AI reply coming soon..."
+  });
+});
 
-  addMessage(text,"user");
-  input.value = "";
-
-  loading = true;
-  sendBtn.classList.add("loading");
-  showTyping();
-
-  try{
-    const res = await fetch("/api/chat",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({message:text})
-    });
-
-    const data = await res.json();
-
-    removeTyping();
-
-    if(data.image){
-      const msg = document.createElement("div");
-      msg.className = "msg ai";
-      msg.innerHTML = `
-        <div class="image-box">
-          <img src="${data.image}">
-          <div class="img-actions">
-            <a href="${data.image}" download>Download</a>
-          </div>
-        </div>`;
-      chat.appendChild(msg);
-    }else{
-      addMessage(data.reply,"ai");
-    }
-
-  }catch{
-    removeTyping();
-    addMessage("Server error","ai");
-  }
-
-  loading = false;
-  sendBtn.classList.remove("loading");
-  chat.scrollTop = chat.scrollHeight;
-}
+// Start server
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
