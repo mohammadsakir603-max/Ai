@@ -53,23 +53,9 @@ async function send(){
     });
 
     const data = await res.json();
-
     removeTyping();
 
-    if(data.image){
-      const msg = document.createElement("div");
-      msg.className = "msg ai";
-      msg.innerHTML = `
-        <div class="image-box">
-          <img src="${data.image}">
-          <div class="img-actions">
-            <a href="${data.image}" download>Download</a>
-          </div>
-        </div>`;
-      chat.appendChild(msg);
-    }else{
-      addMessage(data.reply,"ai");
-    }
+    addMessage(data.reply,"ai");
 
   }catch{
     removeTyping();
@@ -78,5 +64,4 @@ async function send(){
 
   loading = false;
   sendBtn.classList.remove("loading");
-  chat.scrollTop = chat.scrollHeight;
 }
